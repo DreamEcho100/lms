@@ -1,51 +1,98 @@
-import { boolean, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+// auth.ts
 
-export const user = pgTable("user", {
-	id: text("id").primaryKey(),
-	name: text("name").notNull(),
-	email: text("email").notNull().unique(),
-	emailVerified: boolean("email_verified").notNull(),
-	image: text("image"),
-	createdAt: timestamp("created_at").notNull(),
-	updatedAt: timestamp("updated_at").notNull(),
+import { createId } from "@/lib/ksuid";
+import { boolean, index, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
+
+/**
+ * @table role
+ * @description Defines user roles for permission enforcement
+ * @why Only teachers can create/manage meetings; students join and view.
+ * @columns
+ * - id: a unique identifier for the role
+ * - name: Role name, e.g. 'teacher' | 'student'
+ */
+export const role = pgTable("roles", {
+  id: text("id").primaryKey().notNull().$default(createId),
+  name: varchar("name", { length: 100 }).notNull(),
 });
 
-export const session = pgTable("session", {
-	id: text("id").primaryKey(),
-	expiresAt: timestamp("expires_at").notNull(),
-	token: text("token").notNull().unique(),
-	createdAt: timestamp("created_at").notNull(),
-	updatedAt: timestamp("updated_at").notNull(),
-	ipAddress: text("ip_address"),
-	userAgent: text("user_agent"),
-	userId: text("user_id")
-		.notNull()
-		.references(() => user.id, { onDelete: "cascade" }),
-});
+export const user = pgTable(
+  "user",
+  {
+    id: text("id").primaryKey().notNull().$default(createId),
+    name: varchar("name", { length: 100 }).notNull(),
+    email: varchar("email", { length: 256 }).notNull().unique(),
+    emailVerified: boolean("email_verified").notNull(),
+    image: varchar("image", { length: 2096 }),
+    createdAt: timestamp("created_at", { precision: 3 }).notNull(),
+    updatedAt: timestamp("updated_at", { precision: 3 }).notNull(),
+    roleId: text("role_id")
+      .notNull()
+      .references(() => role.id),
+  },
 
-export const account = pgTable("account", {
-	id: text("id").primaryKey(),
-	accountId: text("account_id").notNull(),
-	providerId: text("provider_id").notNull(),
-	userId: text("user_id")
-		.notNull()
-		.references(() => user.id, { onDelete: "cascade" }),
-	accessToken: text("access_token"),
-	refreshToken: text("refresh_token"),
-	idToken: text("id_token"),
-	accessTokenExpiresAt: timestamp("access_token_expires_at"),
-	refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
-	scope: text("scope"),
-	password: text("password"),
-	createdAt: timestamp("created_at").notNull(),
-	updatedAt: timestamp("updated_at").notNull(),
-});
+  table => [
+    index("idx_user_created_at").on(table.createdAt),
+    index("idx_user_updated_at").on(table.updatedAt),
+  ],
+);
+export const session = pgTable(
+  "session",
+  {
+    id: text("id").primaryKey().notNull().$default(createId),
+    expiresAt: timestamp("expires_at", { precision: 3 }).notNull(),
+    token: varchar("token", { length: 256 }).notNull().unique(),
+    createdAt: timestamp("created_at", { precision: 3 }).notNull(),
+    updatedAt: timestamp("updated_at", { precision: 3 }).notNull(),
+    ipAddress: varchar("ip_address", { length: 45 }),
+    userAgent: varchar("user_agent", { length: 512 }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  table => [
+    index("idx_session_created_at").on(table.createdAt),
+    index("idx_session_updated_at").on(table.updatedAt),
+  ],
+);
 
-export const verification = pgTable("verification", {
-	id: text("id").primaryKey(),
-	identifier: text("identifier").notNull(),
-	value: text("value").notNull(),
-	expiresAt: timestamp("expires_at").notNull(),
-	createdAt: timestamp("created_at"),
-	updatedAt: timestamp("updated_at"),
-});
+export const account = pgTable(
+  "account",
+  {
+    id: text("id").primaryKey().notNull().$default(createId),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    accessToken: varchar("access_token", { length: 2048 }),
+    refreshToken: varchar("refresh_token", { length: 2048 }),
+    idToken: varchar("id_token", { length: 2048 }),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { precision: 3 }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { precision: 3 }),
+    scope: varchar("scope", { length: 512 }),
+    password: varchar("password", { length: 512 }),
+    createdAt: timestamp("created_at", { precision: 3 }).notNull(),
+    updatedAt: timestamp("updated_at", { precision: 3 }).notNull(),
+  },
+  table => [
+    index("idx_account_created_at").on(table.createdAt),
+    index("idx_account_updated_at").on(table.updatedAt),
+  ],
+);
+
+export const verification = pgTable(
+  "verification",
+  {
+    id: text("id").primaryKey().notNull().$default(createId),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { precision: 3 }).notNull(),
+    createdAt: timestamp("created_at", { precision: 3 }),
+    updatedAt: timestamp("updated_at", { precision: 3 }),
+  },
+  table => [
+    index("idx_verification_created_at").on(table.createdAt),
+    index("idx_verification_updated_at").on(table.updatedAt),
+  ],
+);
